@@ -1,0 +1,132 @@
+package com.example.cft_test;
+
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TextView;
+import org.json.JSONException;
+import org.json.JSONObject;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.ArrayList;
+import javax.net.ssl.HttpsURLConnection;
+
+public class MainActivity extends AppCompatActivity {
+    String[] Spisok={"AUD", "AZN", "GBP", "AMD","BYN", "BGN", "BRL", "HUF", "HKD", "DKK", "USD",
+            "EUR", "INR", "KZT", "CAD", "KGS", "CNY", "MDL", "NOK", "PLN", "RON", "XDR", "SGD",
+            "TJS", "TRY", "TMT", "UZS", "UAH", "CZK", "SEK", "CHF", "ZAR", "KRW", "JPY"};
+
+    String s_Valute, s_kupyra, s_parametr_1, s_parametr_2 ;
+    String[] Srezult_CharCode=new String[34];
+    String[] Srezult_Value=new String[34];
+
+
+    BoxAdapter boxAdapter;
+    ArrayList<Product> products = new ArrayList<Product>();
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // создаем адаптер------------------------------------------------------------------
+        boxAdapter = new BoxAdapter(this, products);
+        //----------------------------------------------------------------------------------
+
+        TextView contentView = findViewById(R.id.content);
+        Button btnFetch = findViewById(R.id.downloadBtn);
+
+        btnFetch.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                contentView.setText("Загрузка...");
+                new Thread(new Runnable() {
+                    public void run() {
+                        try{
+                            String content = getContent("https://www.cbr-xml-daily.ru/daily_json.js");
+                            contentView.post(new Runnable() {
+                                public void run() {
+  //------------------------------------------------------------------------------------------JSON----------------------------------------------------------------------------
+                                    JSONObject json= null;
+                                    try {
+                                        json = new JSONObject(content);
+                                        s_Valute=json.getString("Valute");
+                                        JSONObject j_Valute=new JSONObject(s_Valute);
+
+                                        for(int i=0; i<=33;i++) {
+                                            s_kupyra = j_Valute.getString(Spisok[i]);
+                                            JSONObject j_kupyra = new JSONObject(s_kupyra);
+
+                                            s_parametr_1 = j_kupyra.getString("CharCode");
+                                            Srezult_CharCode[i]=s_parametr_1;
+
+                                            s_parametr_2=j_kupyra.getString("Value");
+                                            Srezult_Value[i]=s_parametr_2;
+
+                                            products.add(new Product(Srezult_CharCode[i], Srezult_Value[i],  R.id.button, "не успел"));
+                                            contentView.setText("");
+
+                                        }
+
+
+
+
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+    //------------------------------------------------------------------------------------------JSON----------------------------------------------------------------------------
+                                    // настраиваем список
+                                    ListView lvMain = (ListView) findViewById(R.id.lvMain);
+                                    lvMain.setAdapter(boxAdapter);
+                                   }
+                            });
+                        }
+
+                        catch (IOException ex){
+
+                        }
+
+                    }
+                }).start();
+            }
+        });
+    }
+    private String getContent(String path) throws IOException {
+        BufferedReader reader=null;
+        InputStream stream = null;
+        HttpsURLConnection connection = null;
+        try {
+            URL url=new URL(path);
+            connection =(HttpsURLConnection)url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setReadTimeout(10000);
+            connection.connect();
+            stream = connection.getInputStream();
+            reader= new BufferedReader(new InputStreamReader(stream));
+            StringBuilder buf=new StringBuilder();
+            String line;
+            while ((line=reader.readLine()) != null) {
+                buf.append(line).append("\n");
+            }
+            return(buf.toString());
+        }
+        finally {
+            if (reader != null) {
+                reader.close();
+            }
+            if (stream != null) {
+                stream.close();
+            }
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+}
